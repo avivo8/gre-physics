@@ -403,10 +403,11 @@
         <span class="spacer"></span>
         <button class="btn" id="end">End session</button>
         <button class="btn" id="skip">Skip</button>
+        <button class="btn" id="reveal" title="See the answer and explanation without answering (S)">Show answer</button>
         <button class="btn primary hidden" id="next">Next →</button>
       </div>
       <div class="row" style="margin-top:14px">
-        <span class="kbd"><kbd>A</kbd>–<kbd>E</kbd> answer · <kbd>Enter</kbd> next · <kbd>B</kbd> bookmark</span>
+        <span class="kbd"><kbd>A</kbd>–<kbd>E</kbd> answer · <kbd>S</kbd> show answer · <kbd>Enter</kbd> next · <kbd>B</kbd> bookmark</span>
         <span class="spacer"></span>
         <form class="jump" id="jump">Go to
           <select>${topics.map(t => `<option value="${t.id}" ${t.id === q.topic ? 'selected' : ''}>${esc(t.short)}</option>`).join('')}</select>
@@ -426,20 +427,31 @@
         if (j === q.ans) b.classList.add('right');
         else if (j === i) b.classList.add('wrong');
       });
+      showFeedback(ok ? 'ok' : 'no', ok ? '✓ Correct' : `✗ Not quite — the answer is (${LET[q.ans]})`);
+    };
+    /** "Show answer": reveal the answer and explanation without counting it as right or wrong */
+    const reveal = () => {
+      if (done) return;
+      done = true;
+      S.log.push({ k: q.key, c: null, v: 1 });
+      $$('.choice', main).forEach((b, j) => { b.disabled = true; if (j === q.ans) b.classList.add('right'); });
+      showFeedback('shown', `The answer is (${LET[q.ans]})`);
+    };
+    function showFeedback(kind, verdict) {
       const f = $('#fbk', main);
-      f.innerHTML = `<div class="feedback ${ok ? 'ok' : 'no'}">
-        <div class="verdict">${ok ? '✓ Correct' : `✗ Not quite — the answer is (${LET[q.ans]})`}</div>
-        <div class="expl">${q.expl}</div></div>`;
+      f.innerHTML = `<div class="feedback ${kind}"><div class="verdict">${verdict}</div><div class="expl">${q.expl}</div></div>`;
       math(f);
       $('#skip', main).classList.add('hidden');
+      $('#reveal', main).classList.add('hidden');
       $('#next', main).classList.remove('hidden');
-      $('#next', main).focus();
+      $('#next', main).focus({ preventScroll: true });
       $('.actions .muted', main).innerHTML = `${esc(S.title)}: <b>${S.ok}</b> / ${S.n} correct · question ${S.i + 1} of ${fmtN(S.list.length)}`;
-    };
+    }
     const next = () => { S.i++; showPractice(S); window.scrollTo(0, 0); };
     $$('.choice', main).forEach(b => (b.onclick = () => answer(+b.dataset.i)));
     $('#next', main).onclick = next;
     $('#skip', main).onclick = () => { S.log.push({ k: q.key, c: null }); next(); };
+    $('#reveal', main).onclick = reveal;
     $('#end', main).onclick = () => endPractice(S);
     $('#star', main).onclick = () => toggleStar(q);
     $('#remove', main).onclick = () => {
@@ -470,6 +482,7 @@
       if (c >= 0 && !done) { e.preventDefault(); answer(c); }
       else if ((e.key === 'Enter' || e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') && done) { e.preventDefault(); next(); }
       else if (e.key === 'b' || e.key === 'B') toggleStar(q);
+      else if ((e.key === 's' || e.key === 'S') && !done) { e.preventDefault(); reveal(); }
     };
   }
   function endPractice(S) {
@@ -682,7 +695,7 @@
         const res = r.c == null ? '<span class="res skip">–</span>' : ok(r) ? '<span class="res ok">✓</span>' : '<span class="res no">✗</span>';
         return `<details class="rev" data-idx="${idx}"><summary>${res}<span>${idx + 1}.</span>
           <span class="pill" style="--c:${T.color}">${esc(T.short)}</span><span class="muted small">§${r.q.sec} ${esc(GRE.leafName(r.q.sec))}</span>
-          <span class="spacer"></span><span class="small">${r.c == null ? 'no answer' : 'you: (' + LET[r.c] + ')'} · answer (${LET[r.q.ans]})</span></summary><div class="body"></div></details>`;
+          <span class="spacer"></span><span class="small">${r.v ? 'answer shown' : r.c == null ? 'no answer' : 'you: (' + LET[r.c] + ')'} · answer (${LET[r.q.ans]})</span></summary><div class="body"></div></details>`;
       }).join('') : '<div class="empty">Nothing here.</div>';
       $$('details.rev', list).forEach(d => d.addEventListener('toggle', () => {
         const body = $('.body', d);

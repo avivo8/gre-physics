@@ -16,7 +16,7 @@ An offline practice course for the Physics GRE. It has 5,000 original GRE-style 
 
 | Mode | What it does |
 |---|---|
-| **Practice** | One question at a time. Pick a choice and you immediately see whether it is right, plus a short explanation of the fastest solution. |
+| **Practice** | One question at a time. Pick a choice and you immediately see whether it is right, plus a short explanation of the fastest solution. Or tap **Show answer** to see the answer and explanation without answering (it doesn't count toward your score). |
 | **Quiz** | 10–100 questions from the topics and book sections you choose, optionally timed at GRE pace (about 1.7 min per question). Score and explanations come at the end. |
 | **Full practice test** | A complete exam with the real test's topic weights, shuffled together. Formats: current (70 questions in 2 h), classic (100 in 2 h 50 min), or half-length. Includes the constants sheet, mark-for-review and a question overview, like the real test. |
 
@@ -26,7 +26,7 @@ In Practice and Quiz you can choose any combination of topics, book sections and
 
 **Progress page:** your accuracy per topic and per book section, the history of your quizzes and tests (each can be re-reviewed), your removed questions, and export or import of your progress. Progress is saved automatically in each browser separately, so your phone and computer keep their own progress. To carry it over, use Export on one device and Import on the other.
 
-**Keyboard shortcuts:** <kbd>A</kbd>–<kbd>E</kbd> (or <kbd>1</kbd>–<kbd>5</kbd>) to answer, <kbd>Enter</kbd>/<kbd>→</kbd> to go to the next question, <kbd>←</kbd> to go back in a test, <kbd>M</kbd> to mark a question for review, <kbd>B</kbd> to bookmark it.
+**Keyboard shortcuts:** <kbd>A</kbd>–<kbd>E</kbd> (or <kbd>1</kbd>–<kbd>5</kbd>) to answer, <kbd>S</kbd> to show the answer, <kbd>Enter</kbd>/<kbd>→</kbd> to go to the next question, <kbd>←</kbd> to go back in a test, <kbd>M</kbd> to mark a question for review, <kbd>B</kbd> to bookmark it.
 
 ## Topics (with weight on the real exam)
 
