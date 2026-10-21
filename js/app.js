@@ -115,14 +115,20 @@
     if (name === 'setup-quiz') return renderSetup('quiz', arg);
     if (name === 'setup-test') return renderTestSetup();
     if (name === 'stats') return renderStats();
+    if (name === 'learn') return renderLearn(arg);
     return renderHome();
   }
   document.addEventListener('click', e => {
     const a = e.target.closest('[data-go]');
     if (!a) return;
     e.preventDefault();
+    if (a.dataset.go !== 'constants') $('#modal').classList.add('hidden');
     if (view === 'exam' && a.dataset.go !== 'constants') toast('Your test is saved — resume it from the home page (the clock keeps running).');
     go(a.dataset.go, a.dataset.arg);
+  });
+  document.addEventListener('click', e => {
+    const a = e.target.closest('[data-res-leaf]');
+    if (a) { e.preventDefault(); showLeafResources(a.dataset.resLeaf); }
   });
   document.addEventListener('keydown', e => {
     if (!keyHandler || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -170,6 +176,7 @@
       <div class="quick"><span class="quick-label">Shortcuts</span>
         <button class="btn" id="qMistakes" ${nm ? '' : 'disabled'}>Redo my mistakes (${fmtN(nm)})</button>
         <button class="btn" id="qBookmarks" ${nb ? '' : 'disabled'}>★ Bookmarked (${fmtN(nb)})</button>
+        <button class="btn" data-go="learn">Study guide: readings &amp; videos</button>
         <button class="btn" data-go="stats">Progress &amp; test history</button>
         <button class="btn" data-go="constants">Constants sheet</button>
       </div>
@@ -182,9 +189,10 @@
           <div class="meta">Chapter ${t.chapter} · ${t.weight}% of the exam · ${t.sections.length} sections</div>
           <div class="bar"><span style="width:${(100 * s.seen) / Math.max(1, size)}%"></span></div>
           <div class="meta">${fmtN(s.seen)} / ${fmtN(size)} answered${s.att ? ` · ${pct(s.cor, s.att)}% correct` : ''}</div>
+          <a href="#" class="tlink" data-go="learn" data-arg="${t.id}">Readings &amp; videos →</a>
         </div>`;
       }).join('')}</div>`;
-    $$('.tcard', main).forEach(c => c.addEventListener('click', () => go('setup-practice', c.dataset.topic)));
+    $$('.tcard', main).forEach(c => c.addEventListener('click', e => { if (!e.target.closest('[data-go]')) go('setup-practice', c.dataset.topic); }));
     const r = $('#resume', main);
     if (r) r.onclick = resumeExam;
     const d = $('#discard', main);
@@ -363,7 +371,7 @@
     const T = GRE.T[q.topic];
     return `<div class="qhead">
       <span class="pill" style="--c:${T.color}">${esc(T.short)}</span>
-      <span>§${q.sec} ${esc(GRE.leafName(q.sec))}</span>
+      <a href="#" class="seclink" data-res-leaf="${q.sec}" title="Readings and videos for this section">§${q.sec} ${esc(GRE.leafName(q.sec))}</a>
       <span class="lvl">${LEVEL[q.level]}</span>
       <span class="spacer"></span>
       <span>Q ${fmtN(q.num)} / ${fmtN(bank(q.topic).length)}</span>
@@ -439,7 +447,7 @@
     };
     function showFeedback(kind, verdict) {
       const f = $('#fbk', main);
-      f.innerHTML = `<div class="feedback ${kind}"><div class="verdict">${verdict}</div><div class="expl">${q.expl}</div></div>`;
+      f.innerHTML = `<div class="feedback ${kind}"><div class="verdict">${verdict}</div><div class="expl">${q.expl}</div>${studyRow(q)}</div>`;
       math(f);
       $('#skip', main).classList.add('hidden');
       $('#reveal', main).classList.add('hidden');
@@ -702,7 +710,7 @@
         if (!d.open || body.childElementCount) return;
         const r = rows[+d.dataset.idx];
         body.innerHTML = `${qhead(r.q, starBtn(r.q).replace('id="star"', '') + removeBtn(r.q))}${qbody(r.q)}
-          <div class="feedback ${ok(r) ? 'ok' : 'no'}"><div class="verdict">${ok(r) ? '✓ Correct' : `Answer: (${LET[r.q.ans]})`}</div><div class="expl">${r.q.expl}</div></div>`;
+          <div class="feedback ${ok(r) ? 'ok' : 'no'}"><div class="verdict">${ok(r) ? '✓ Correct' : `Answer: (${LET[r.q.ans]})`}</div><div class="expl">${r.q.expl}</div>${studyRow(r.q)}</div>`;
         $$('.choice', body).forEach((b, j) => {
           b.disabled = true;
           if (j === r.q.ans) b.classList.add('right'); else if (j === r.c) b.classList.add('wrong');
@@ -826,6 +834,73 @@
       if (!confirm(`Restore all ${qs.length} removed questions?`)) return;
       P.hid = {}; save(); showRemoved();
     };
+  }
+
+  // ------------------------------------------------------------------ study guide (readings & videos)
+  const leafRes = leaf => { const L = GRE.leafIndex[leaf]; const R = L && (GRE.RES || {})[L.topic]; return (R && R.leaves[leaf]) || []; };
+  const RTYPE = { video: '<span class="rtype v">▶ Video</span>', read: '<span class="rtype r">Read</span>' };
+  const resItem = it => `<a class="resitem" href="${esc(it.url)}" target="_blank" rel="noopener">${RTYPE[it.type] || ''}
+      <span class="rbody"><span class="rtitle">${esc(it.title)}</span><span class="rby">${esc(it.by)}${it.note ? ' · ' + esc(it.note) : ''}</span></span></a>`;
+  const bookRef = leaf => (GRE.BOOK_PAGES && GRE.BOOK_PAGES[leaf]
+    ? `<div class="bookref">In your book: <i>Conquering the Physics GRE</i> §${leaf}, p. ${GRE.BOOK_PAGES[leaf]}</div>` : '');
+  const short = (t, n = 48) => (t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t);
+  /** "Study this" links under an explanation: first video, first reading, and the full list */
+  function studyRow(q) {
+    const list = leafRes(q.sec);
+    const v = list.find(x => x.type === 'video'), r = list.find(x => x.type === 'read');
+    return `<div class="study"><span class="study-lbl">Study this</span>
+      ${v ? `<a href="${esc(v.url)}" target="_blank" rel="noopener">▶ ${esc(short(v.title))}</a>` : ''}
+      ${r ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">📖 ${esc(short(r.title))}</a>` : ''}
+      <a href="#" data-res-leaf="${q.sec}">All resources for §${q.sec} →</a></div>`;
+  }
+  function showLeafResources(leaf) {
+    const L = GRE.leafIndex[leaf];
+    if (!L) return;
+    const T = GRE.T[L.topic], list = leafRes(leaf);
+    modal(`<div class="muted small">${esc(T.name)} · §${esc(L.section.id)} ${esc(L.section.name)}</div>
+      <h2 style="margin:2px 0 8px">${leaf === L.section.id ? '' : leaf + ' '}${esc(L.leaf.name)}</h2>${bookRef(leaf)}
+      <div class="reslist">${list.map(resItem).join('') || '<div class="muted">No links for this section yet.</div>'}</div>
+      ${view === 'practice' || view === 'exam' ? '' : `<p style="margin-top:14px"><a href="#" data-go="learn" data-arg="${leaf}">Open the ${esc(T.short)} study guide →</a></p>`}`);
+  }
+  function renderLearn(arg) {
+    view = 'learn';
+    const focus = arg && GRE.leafIndex[arg] ? arg : null;
+    const tid = focus ? GRE.leafIndex[focus].topic : arg && GRE.T[arg] ? arg : P.settings.learnTopic || topics[0].id;
+    P.settings.learnTopic = tid; save();
+    withBanks([tid], () => {
+      if (view !== 'learn') return;
+      const T = GRE.T[tid], R = (GRE.RES || {})[tid] || { topic: [], leaves: {} };
+      main.innerHTML = `
+        <h1>Study guide</h1>
+        <p class="lead">Free readings and videos for every topic and book section, with where to find each section in <i>Conquering the Physics GRE</i>. Links open in a new tab.</p>
+        <div class="ttabs">${topics.map(t => `<button class="ttab ${t.id === tid ? 'on' : ''}" style="--c:${t.color}" data-t="${t.id}">${esc(t.short)}</button>`).join('')}</div>
+        <div class="panel learn-topic" style="--c:${T.color}">
+          <h2>${esc(T.name)}</h2>
+          <div class="muted small">Chapter ${T.chapter} of the book · ${T.weight}% of the exam · start with these for the whole topic</div>
+          <div class="reslist">${R.topic.map(resItem).join('') || '<div class="muted">Resources for this topic are coming soon.</div>'}</div>
+        </div>
+        ${T.sections.map(sec => `<h3 class="learn-sec">§${sec.id} ${esc(sec.name)}</h3>
+          ${sec.subs.map(l => {
+            const n = bank(tid).filter(q => q.sec === l.id && !removed(q.key)).length;
+            return `<div class="leafcard" id="leaf-${l.id}">
+              <div class="leafhead"><b>${l.id === sec.id ? '' : l.id + ' '}${esc(l.name)}</b><span class="spacer"></span>
+                <button class="btn small" data-practice="${l.id}" ${n ? '' : 'disabled'}>Practice (${fmtN(n)})</button></div>
+              ${bookRef(l.id)}
+              <div class="reslist">${(R.leaves[l.id] || []).map(resItem).join('') || '<div class="muted small">No links yet.</div>'}</div>
+            </div>`;
+          }).join('')}`).join('')}`;
+      math(main);
+      $$('.ttab', main).forEach(b => (b.onclick = () => { renderLearn(b.dataset.t); window.scrollTo(0, 0); }));
+      $$('[data-practice]', main).forEach(b => (b.onclick = () => {
+        const leaf = b.dataset.practice;
+        const list = shuffle(bank(tid).filter(q => q.sec === leaf));
+        startPractice(list.filter(q => !P.q[q.key]).concat(list.filter(q => P.q[q.key])), `Practice §${leaf}`);
+      }));
+      if (focus) {
+        const el = document.getElementById('leaf-' + focus);
+        if (el) { el.classList.add('focus'); el.scrollIntoView({ block: 'start' }); window.scrollBy(0, -70); }
+      }
+    });
   }
 
   // ------------------------------------------------------------------ constants sheet

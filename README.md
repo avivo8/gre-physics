@@ -22,6 +22,8 @@ An offline practice course for the Physics GRE. It has 5,000 original GRE-style 
 
 In Practice and Quiz you can choose any combination of topics, book sections and subsections, and difficulty (easy, medium or hard). You can also choose which questions to draw: new ones first, any, only the ones you got wrong, or only bookmarked ones. In Practice you can jump straight to a question number, for example Mechanics Q #1234.
 
+**Study guide (Learn):** free readings and YouTube videos for every topic and for each of the 141 book sections: 641 links, all checked to load. Each section card also shows where that section starts in *Conquering the Physics GRE* and has a button to practice just that section. After every answer, a **Study this** row links the best video and reading for that question's section. Tap the section name above any question to see all its resources.
+
 **Remove a question:** tap **Remove** next to the bookmark star (in Practice, or when reviewing quiz/test answers). The question won't be drawn again in any practice session, quiz or test. Undo right away, or restore it later from the Progress page.
 
 **Progress page:** your accuracy per topic and per book section, the history of your quizzes and tests (each can be re-reviewed), your removed questions, and export or import of your progress. Progress is saved automatically in each browser separately, so your phone and computer keep their own progress. To carry it over, use Export on one device and Import on the other.
@@ -71,3 +73,5 @@ To run it (on macOS, from this folder):
 Topic ids: `mech em optics thermo qm atomic sr lab spec`. See `tools/AUTHORING.md` to add more question templates.
 
 After changing any app file, run `python3 tools/build-sw.py` so installed copies pick up the new version.
+
+To add or change study links, see `tools/RESOURCES.md`, then check them with `python3 tools/check-resources.py all`.
