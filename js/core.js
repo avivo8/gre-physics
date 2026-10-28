@@ -344,6 +344,7 @@
     const clean = s => typeof s === 'string' ? s.replace(/·/g, ' ') : s;
     return {
       topic: T.id, tid: t.id, sec: t.sec, level: o.level || t.level || 2,
+      profile: t.profile || 'drill', skill: t.skill || null,
       q: clean(o.q), choices: o.choices.map(clean), ans: o.ans, expl: clean(o.expl), fig: o.fig || null,
     };
   };
@@ -375,7 +376,7 @@
   GRE.buildBank = function (tid, target = GRE.TARGET) {
     if (banks[tid] && banks[tid].length >= Math.min(target, banks[tid].target)) return banks[tid];
     const T = GRE.T[tid];
-    const st = T.templates.map(t => ({ t, k: 0, n: 0, dead: false, errors: 0, lastErr: '', dups: 0 }));
+    const st = T.templates.filter(t => t.profile !== 'reasoning').map(t => ({ t, k: 0, n: 0, dead: false, errors: 0, lastErr: '', dups: 0 }));
     const keys = new Set();
     const out = [];
     let live = st.length;
@@ -405,11 +406,68 @@
     // deterministic interleave so neighbouring question numbers come from different templates
     const R = new Rand(tid + '|order');
     const bank = R.shuffle(out);
+    // Append curated items after the existing bank: preserve old question numbers,
+    // keys, bookmarks and saved exams rather than renumbering the original bank.
+    for (const t of T.templates.filter(t => t.profile === 'reasoning')) {
+      const q = GRE.make(T, t, `${tid}|${t.id}|0`);
+      const err = GRE.check(q);
+      if (err) throw new Error(t.id + ': ' + err);
+      const key = q.q + '||' + q.choices[q.ans];
+      if (!keys.has(key)) {
+        keys.add(key); q.key = tid + '-' + hash32(key).toString(36); bank.push(q);
+      }
+    }
     bank.forEach((q, i) => { q.num = i + 1; });
     bank.target = target;
     banks[tid] = bank;
-    GRE.debug[tid] = st.map(s => ({ id: s.t.id, sec: s.t.sec, n: s.n, dead: s.dead, errors: s.errors, dups: s.dups, lastErr: s.lastErr }));
+    GRE.debug[tid] = T.templates.filter(t => t.profile === 'reasoning').map(t => ({
+      id: t.id, sec: t.sec, n: bank.filter(q => q.tid === t.id).length,
+      dead: true, errors: 0, dups: 0, lastErr: '',
+    })).concat(st.map(s => ({ id: s.t.id, sec: s.t.sec, n: s.n, dead: s.dead, errors: s.errors, dups: s.dups, lastErr: s.lastErr })));
     return bank;
+  };
+
+  /** Preserve input priority (e.g. unseen first), preferring distinct templates. */
+  GRE.diverse = function (list) {
+    const used = new Set(), first = [], rest = [];
+    for (const q of list) {
+      const id = q.topic + '|' + q.tid;
+      if (used.has(id)) rest.push(q); else { used.add(id); first.push(q); }
+    }
+    return first.concat(rest);
+  };
+  /** Editorial practice mix, not an asserted ETS question-type distribution.
+   * About 60% curated reasoning, with existing drills for short calculations.
+   * Exhausted/filtered pools fall back without repeating a question.
+   */
+  GRE.selectQuestions = function (list, n, profile = 'balanced') {
+    if (profile === 'all') return GRE.diverse(list).slice(0, n);
+    const reasoning = GRE.diverse(list.filter(q => q.profile === 'reasoning'));
+    if (profile === 'reasoning') return reasoning.slice(0, n);
+    const drills = GRE.diverse(list.filter(q => q.profile !== 'reasoning'));
+    let nr = Math.min(reasoning.length, Math.round(n * 0.6));
+    const nd = Math.min(drills.length, n - nr);
+    nr = Math.min(reasoning.length, n - nd);
+    const out = []; let r = 0, d = 0;
+    // Evenly distribute reasoning throughout the requested set.
+    while (r < nr || d < nd) {
+      if (r < nr && (d >= nd || r < Math.ceil((out.length + 1) * nr / (nr + nd)))) out.push(reasoning[r++]);
+      else out.push(drills[d++]);
+    }
+    return out;
+  };
+  GRE.practiceOrder = function (list, profile = 'balanced') {
+    if (profile !== 'balanced') return GRE.selectQuestions(list, list.length, profile);
+    // Keep the opening of a long practice session balanced too. A global quota
+    // over 5000 drills would otherwise use all finite reasoning items immediately.
+    const reasoning = GRE.diverse(list.filter(q => q.profile === 'reasoning'));
+    const drills = GRE.diverse(list.filter(q => q.profile !== 'reasoning'));
+    const out = []; let r = 0, d = 0;
+    while (r < reasoning.length || d < drills.length) {
+      for (let i = 0; i < 3 && r < reasoning.length; i++) out.push(reasoning[r++]);
+      for (let i = 0; i < 2 && d < drills.length; i++) out.push(drills[d++]);
+    }
+    return out;
   };
 
   GRE.sectionOf = leafId => (GRE.leafIndex[leafId] || {}).section;

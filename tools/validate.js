@@ -28,6 +28,7 @@ else {
   load('js/topics/' + tid + '.js');
   try { load('js/topics/' + tid + '-2.js'); } catch (e) { if (!/Could not open|No such file|can't find/i.test(String(e))) throw e; }
 }
+load('js/topics/reasoning.js');
 var hasKatex = false;
 try { load('vendor/katex/katex.min.js'); hasKatex = typeof katex !== 'undefined'; } catch (e) { print('(KaTeX not available: ' + e + ')'); }
 

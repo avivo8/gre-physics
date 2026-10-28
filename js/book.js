@@ -35,7 +35,7 @@
   });
 
   GRE.defineTopic({
-    id: 'optics', name: 'Optics and Wave Phenomena', short: 'Optics & Waves', chapter: '3', weight: 9, color: '#0c8599',
+    id: 'optics', name: 'Optics and Wave Phenomena', short: 'Optics & Waves', chapter: '3', weight: 8, color: '#0c8599',
     sections: [
       S('3.1', 'Properties of waves', [['3.1.1', 'Wave equation'], ['3.1.2', 'Nomenclature and complex notation'], ['3.1.3', 'Dispersion relations'], ['3.1.4', 'Examples of waves'], ['3.1.5', 'Index of refraction'], ['3.1.6', 'Polarization']]),
       S('3.2', 'Interference and diffraction', [['3.2.1', 'Double-slit interference'], ['3.2.2', 'Single-slit diffraction'], ['3.2.3', 'Optical path length'], ['3.2.4', 'Thin films and phase shifts'], ['3.2.5', 'Miscellaneous diffraction (gratings, resolution)']]),
@@ -54,7 +54,7 @@
   });
 
   GRE.defineTopic({
-    id: 'qm', name: 'Quantum Mechanics', short: 'Quantum', chapter: '5.1–5.6', weight: 12, color: '#7048e8',
+    id: 'qm', name: 'Quantum Mechanics', short: 'Quantum', chapter: '5.1–5.6', weight: 13, color: '#7048e8',
     sections: [
       S('5.1', 'Formalism', [['5.1.1', 'Wavefunctions and operators'], ['5.1.2', 'Dirac notation'], ['5.1.3', 'Schrödinger equation'], ['5.1.4', 'Commutators and the uncertainty principle']]),
       S('5.2', 'Harmonic oscillator', [['5.2.1', 'One dimension'], ['5.2.2', 'Three dimensions']]),
