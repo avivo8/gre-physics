@@ -157,7 +157,6 @@
   function renderHome() {
     view = 'home';
     const cur = getCur();
-    const total = topics.reduce((s, t) => s + (ready.has(t.id) ? bank(t.id).length : GRE.TARGET), 0);
     const nm = mistakes().length, nb = bookmarks().length;
     main.innerHTML = `
       ${cur ? `<div class="resume"><div><b>${esc(cur.title)}</b> in progress — ${cur.ans.filter(a => a != null).length} of ${cur.keys.length} answered${cur.end ? `, ${fmtTime((cur.end - Date.now()) / 1000)} left` : ''}.</div>
@@ -165,13 +164,13 @@
       <div class="welcome">
         <div class="eyebrow">Physics GRE study workspace</div>
         <h1>What would you like to do?</h1>
-        <p class="lead">Choose a study mode below. There are ${fmtN(total)} original GRE-style questions across all nine content areas.</p>
+        <p class="lead">Choose a study mode below. Start with conceptual reasoning, scaling, graphs and experiments, mixed with calculation drills across all nine content areas.</p>
       </div>
       <div class="section-intro"><h2>Start studying</h2><p class="muted">Practice gives immediate feedback; quizzes and tests save the answers until the end.</p></div>
       <div class="modes">
         <button class="mode" data-go="setup-practice"><span class="mode-kicker">Immediate feedback</span><h3>Practice</h3><p>Answer one question at a time and see the worked explanation right away.</p><span class="mode-action">Choose topics →</span></button>
         <button class="mode" data-go="setup-quiz"><span class="mode-kicker">10–100 questions</span><h3>Quiz</h3><p>Build a focused set from the topics and sections you choose, optionally timed.</p><span class="mode-action">Build a quiz →</span></button>
-        <button class="mode" data-go="setup-test"><span class="mode-kicker">Exam simulation</span><h3>Full practice test</h3><p>Use the real Physics GRE topic weights, question count, and time limit.</p><span class="mode-action">Choose a format →</span></button>
+        <button class="mode" data-go="setup-test"><span class="mode-kicker">Exam simulation</span><h3>Full practice test</h3><p>Use current topic weights and timing, with reasoning questions mixed into every topic.</p><span class="mode-action">Choose a format →</span></button>
       </div>
       <div class="quick"><span class="quick-label">Shortcuts</span>
         <button class="btn" id="qMistakes" ${nm ? '' : 'disabled'}>Redo my mistakes (${fmtN(nm)})</button>
@@ -219,6 +218,7 @@
     const order = st.order || 'random';
     const nQ = st.n || 20;
     const timer = st.timer || 'pace';
+    const profile = st.profile || 'balanced';
     main.innerHTML = `
       <h1>${mode === 'practice' ? 'Practice' : 'Quiz'}</h1>
       <p class="lead">${mode === 'practice'
@@ -250,6 +250,11 @@
           <div class="opt"><div class="lbl">Timer</div>
             <label><input type="radio" name="timer" value="pace" ${timer === 'pace' ? 'checked' : ''}> GRE pace (about 1.7 min per question)</label>
             <label><input type="radio" name="timer" value="off" ${timer === 'off' ? 'checked' : ''}> No time limit</label></div>` : ''}
+          <div class="opt"><div class="lbl">Question style</div>
+            <label><input type="radio" name="profile" value="balanced" ${profile === 'balanced' ? 'checked' : ''}> GRE-style mix (recommended)</label>
+            <label><input type="radio" name="profile" value="reasoning" ${profile === 'reasoning' ? 'checked' : ''}> Concepts, scaling, graphs &amp; experiments</label>
+            <label><input type="radio" name="profile" value="all" ${profile === 'all' ? 'checked' : ''}> Full bank, including calculation drills</label>
+            <p class="muted small">The mix aims for roughly 60% original reasoning questions and 40% existing drills, when available. This is our study balance, not an ETS specification. Narrow section filters or an exhausted reasoning pool may include more drills.</p></div>
           <div class="opt"><div class="lbl">Difficulty</div>
             ${[1, 2, 3].map(l => `<label><input type="checkbox" name="lvl" value="${l}" ${levels.has(l) ? 'checked' : ''}> ${LEVEL[l]}</label>`).join('')}</div>
           <div class="opt"><div class="lbl">Which questions</div>
@@ -268,6 +273,7 @@
 
     const cfg = () => ({
       sel,
+      profile: ($('input[name=profile]:checked', main) || {}).value || 'balanced',
       levels: new Set($$('input[name=lvl]:checked', main).map(i => +i.value)),
       which: ($('input[name=which]:checked', main) || {}).value || 'unseen',
       order: ($('input[name=order]:checked', main) || {}).value || 'random',
@@ -318,7 +324,7 @@
     $('#none', main).onclick = () => { sel = new Set(); sync(); };
     $('#start', main).onclick = () => {
       const c = cfg();
-      P.settings[mode] = { sel: [...sel], levels: [...c.levels], which: c.which, order: c.order, n: c.n, timer: c.timer };
+      P.settings[mode] = { sel: [...sel], levels: [...c.levels], which: c.which, order: c.order, n: c.n, timer: c.timer, profile: c.profile };
       save();
       const tids = topics.filter(t => leavesOf(t).some(l => sel.has(l))).map(t => t.id);
       withBanks(tids, () => {
@@ -326,9 +332,10 @@
         if (!list.length) return toast('No questions match these choices.');
         if (mode === 'practice') {
           list = orderList(list, c);
+          if (c.order !== 'number') list = GRE.practiceOrder(list, c.profile);
           startPractice(list, 'Practice');
         } else {
-          list = pickDiverse(orderList(list, { ...c, order: 'random' }), c.n);
+          list = GRE.selectQuestions(orderList(list, { ...c, order: 'random' }), c.n, c.profile);
           startExam(shuffle(list), { title: `Quiz — ${list.length} questions`, kind: 'quiz', limit: c.timer === 'pace' ? Math.round(list.length * 1.7 * 60) : 0 });
         }
       });
@@ -340,6 +347,7 @@
     const out = [];
     for (const t of ts) {
       for (const q of bank(t.id)) {
+        if (c.profile === 'reasoning' && q.profile !== 'reasoning') continue;
         if (!c.sel.has(q.sec) || !c.levels.has(q.level) || removed(q.key)) continue;
         const r = P.q[q.key];
         if (c.which === 'missed' && !(r && r.l === 0)) continue;
@@ -355,17 +363,6 @@
     if (c.which === 'unseen') arr = arr.filter(q => !P.q[q.key]).concat(arr.filter(q => P.q[q.key]));
     return arr;
   }
-  /** first n questions of `list`, preferring a different template for each */
-  function pickDiverse(list, n) {
-    const used = new Set(), out = [], rest = [];
-    for (const q of list) {
-      if (out.length >= n) break;
-      if (used.has(q.tid)) rest.push(q); else { used.add(q.tid); out.push(q); }
-    }
-    for (const q of rest) { if (out.length >= n) break; out.push(q); }
-    return out;
-  }
-
   // ------------------------------------------------------------------ question rendering
   function qhead(q, extra) {
     const T = GRE.T[q.topic];
@@ -419,7 +416,7 @@
         <span class="spacer"></span>
         <form class="jump" id="jump">Go to
           <select>${topics.map(t => `<option value="${t.id}" ${t.id === q.topic ? 'selected' : ''}>${esc(t.short)}</option>`).join('')}</select>
-          Q# <input type="number" min="1" max="${GRE.TARGET}" placeholder="1–${GRE.TARGET}" required>
+          Q# <input type="number" min="1" max="${Math.max(...topics.map(t => bank(t.id).length))}" placeholder="Question number" required>
           <button class="btn small">Go</button></form>
       </div>`;
     math(main);
@@ -625,7 +622,7 @@
             <label><input type="checkbox" id="fresh" ${st.fresh === false ? '' : 'checked'}> Use questions I haven't seen before when possible</label>
           </div>
           <button class="btn primary" id="start">Start test</button>
-          <p class="muted small" style="margin-top:12px">The clock keeps running if you leave the page; you can resume from the home page. The constants sheet is available during the test, as on the real exam. No calculator.</p>
+          <p class="muted small" style="margin-top:12px">Original practice questions use a reasoning-first mix (about 60% when available), alongside calculation drills. This balance is our design choice, not an ETS specification. The clock keeps running if you leave the page; you can resume from the home page. The constants sheet is available during the test, as on the real exam. No calculator.</p>
         </div>
         <div class="panel"><b>Questions per topic</b><table class="weights" id="wt"></table></div>
       </div>`;
@@ -645,7 +642,7 @@
         topics.forEach((t, i) => {
           let list = shuffle(bank(t.id).filter(q => !removed(q.key)));
           if (fresh) list = list.filter(q => !P.q[q.key]).concat(list.filter(q => P.q[q.key]));
-          qs = qs.concat(pickDiverse(list, a[i]));
+          qs = qs.concat(GRE.selectQuestions(list, a[i]));
         });
         startExam(shuffle(qs), { title: f.title, kind: 'test', limit: f.min * 60 });
       });

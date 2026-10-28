@@ -1,6 +1,6 @@
 # GRE Physics Trainer
 
-An offline practice course for the Physics GRE. It has 5,000 original GRE-style multiple-choice questions for each of the nine content areas of the exam (45,000 in total), organized by the chapters and sections of *Conquering the Physics GRE* (Kahn & Anderson).
+An offline practice course for the Physics GRE. It has 84 original reasoning questions alongside 45,000 generated calculation and mixed-style variants across the nine content areas of the exam, organized by the chapters and sections of *Conquering the Physics GRE* (Kahn & Anderson).
 
 ## Start
 
@@ -11,6 +11,14 @@ An offline practice course for the Physics GRE. It has 5,000 original GRE-style 
 - Android (Chrome): ⋮ → Add to Home screen / Install app.
 
 **On this computer:** double-click `index.html`.
+
+## Question style
+
+The default GRE-style mix targets about 60% curated reasoning questions and 40% existing drills, when the selected pool permits. This is an editorial study balance, **not a claimed ETS question-type percentage**. Full tests apply this mix within each topic. Practice interleaves three reasoning questions with two drills until a pool is exhausted; quizzes avoid repeated templates where possible. Small section filters, difficulty filters, removed questions, or exhausted pools can change that balance. Reasoning-only and full-bank modes are also available in Practice and Quiz. Number order preserves numerical order rather than interleaving.
+
+The 84 added questions cover conceptual principles, proportional reasoning, graph interpretation, experimental design and uncertainty. Each fixed stem counts once, not once per answer shuffle. Explanations identify a physical principle and a common trap. Original bank question numbers, progress keys, bookmarks and saved tests are preserved; new questions are appended.
+
+Reference: [ETS content outline](https://www.ets.org/gre/test-takers/subject-tests/about/content-structure.html) and [official practice book](https://www.ets.org/content/dam/ets-org/pdfs/gre/practice-book-physics.pdf). The questions are independently written, not official ETS questions. Four new questions include diagrams; other graph questions use textual descriptions. This does not reproduce the full visual range of the real exam.
 
 ## How to study
 
@@ -36,10 +44,10 @@ In Practice and Quiz you can choose any combination of topics, book sections and
 |---|---|---|
 | Classical Mechanics | 1 | 20% |
 | Electromagnetism | 2 | 18% |
-| Quantum Mechanics | 5.1–5.6 | 12% |
+| Quantum Mechanics | 5.1–5.6 | 13% |
 | Thermodynamics & Statistical Mechanics | 4 | 10% |
 | Atomic Physics | 5.7 | 10% |
-| Optics & Wave Phenomena | 3 | 9% |
+| Optics & Wave Phenomena | 3 | 8% |
 | Specialized Topics | 8 | 9% |
 | Special Relativity | 6 | 6% |
 | Laboratory Methods | 7 | 6% |
@@ -58,7 +66,7 @@ The template draws the scenario, the numbers, and which quantity is asked for. I
 
 `tools/validate.js` checks every bank:
 
-- it reaches 5,000 unique questions;
+- it reaches at least 5,000 unique questions per topic, plus that topic’s curated additions;
 - every template works;
 - every book section is covered;
 - all math renders;
@@ -69,6 +77,15 @@ To run it (on macOS, from this folder):
 ```sh
 /System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tools/validate.js -- mech 5
 ```
+
+To verify reasoning-only selection, balanced sampling, fallback, and original progress compatibility:
+
+```sh
+git show main:js/core.js > /tmp/gre-core-before.js
+/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tools/check-reasoning.js -- /tmp/gre-core-before.js
+```
+
+The baseline argument is optional; omit it to test current selection only.
 
 Topic ids: `mech em optics thermo qm atomic sr lab spec`. See `tools/AUTHORING.md` to add more question templates.
 
